@@ -41,23 +41,14 @@ SCHEDULE_IST = {
 
 
 def random_sleep_within_window(slot: str):
-    """
-    Sleeps a random duration so the actual post lands at a random
-    time within the window for today's slot.
-
-    GitHub Actions triggers at the START of each window (in UTC).
-    We sleep 0 to (window_size - 5) minutes randomly.
-    The -5 buffer gives enough time for the pipeline to complete.
-    """
     from datetime import datetime, timezone, timedelta
 
     IST = timezone(timedelta(hours=5, minutes=30))
     now = datetime.now(IST)
     day = now.weekday()
 
-    window         = SCHEDULE_IST[day][slot]
-    window_minutes = (window[1] - window[0]) * 60
-    sleep_minutes  = random.randint(0, max(0, window_minutes - 5))
+    window = SCHEDULE_IST[day][slot]
+    sleep_minutes = random.randint(1, 5)
 
     print(f"  Day    : {now.strftime('%A')}")
     print(f"  Slot   : {slot}")
