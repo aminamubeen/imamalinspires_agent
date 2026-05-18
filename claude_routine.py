@@ -10,7 +10,7 @@ Required environment variables:
 
 import os
 import json
-import google.genai as genai
+from google import genai
 
 
 # ── Client ────────────────────────────────────────────────────────────────────
