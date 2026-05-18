@@ -14,12 +14,11 @@ from google import genai
 
 
 # ── Client ────────────────────────────────────────────────────────────────────
-def _get_model():
+def _get_client():
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise EnvironmentError("GEMINI_API_KEY environment variable not set.")
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-1.5-flash")
+    return genai.Client(api_key=api_key)
 
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
@@ -56,7 +55,7 @@ def generate_caption_and_hashtags(quote: dict) -> dict:
             "hashtags": "#ImamAli #Wisdom ..."
         }
     """
-    model = _get_model()
+    client = _get_client()
 
     prompt = PROMPT_TEMPLATE.format(
         text       = quote["text"],
@@ -68,8 +67,12 @@ def generate_caption_and_hashtags(quote: dict) -> dict:
 
     print("Calling Gemini API to generate caption and hashtags...")
 
-    response = model.generate_content(prompt)
-    raw      = response.text.strip()
+    response = client.models.generate_content(
+        model    = "gemini-2.0-flash",
+        contents = prompt,
+    )
+
+    raw = response.text.strip()
 
     # Strip accidental markdown fences if present
     if raw.startswith("```"):
