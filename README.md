@@ -1,6 +1,6 @@
 # @imamalinspires — Daily Quote Automation
 
-A fully automated, human-in-the-loop pipeline that wakes up every morning and evening, picks a wisdom quote from Imam Ali (AS), renders beautifully styled images, writes a peaceful caption using Claude AI, and asks for your approval on Telegram before posting a carousel to Instagram — all on a randomised schedule so it never looks like a bot.
+A fully automated, human-in-the-loop pipeline that wakes up every morning and evening, picks a wisdom quote from Imam Ali (AS), renders beautifully styled images, writes a peaceful caption using Gemini AI, and asks for your approval on Telegram before posting a carousel to Instagram — all on a randomised schedule so it never looks like a bot.
 
 ---
 
@@ -13,7 +13,7 @@ GitHub Actions triggers (start of time window)
             ↓
   Pick quote → Render 4 images (Pillow)
             ↓
-  Claude writes caption + hashtags
+  Gemini writes caption + hashtags
             ↓
   Telegram sends you a preview:
   [dark image] [light image]
@@ -35,7 +35,7 @@ GitHub Actions triggers (start of time window)
 ```
 ├── main.py                        # Orchestrates the full pipeline
 ├── generate_image.py              # Pillow image renderer (dark + light themes)
-├── claude_routine.py              # Calls Claude API for caption + hashtags
+├── claude_routine.py              # Calls Gemini API for caption + hashtags
 ├── telegram_approval.py           # Sends preview, waits for your approval
 ├── upload_to_r2.py                # Uploads all 4 images to Cloudflare R2
 ├── post_to_instagram.py           # Posts dark + light as carousel via Graph API
@@ -92,7 +92,7 @@ GitHub Actions triggers at the start of each window. `main.py` then sleeps a ran
 Before anything is uploaded or posted, you receive a Telegram preview:
 
 1. **Two images** — dark and light Instagram renders sent as a photo group
-2. **Caption + hashtags** — the Claude-generated text
+2. **Caption + hashtags** — the Gemini-generated text
 3. **Three inline buttons:**
 
 | Button | Action |
@@ -152,41 +152,64 @@ Download [Lora](https://fonts.google.com/specimen/Lora) and [Poppins](https://fo
 3. Message [@userinfobot](https://t.me/userinfobot) to get your **personal chat ID**
 4. Start a conversation with your new bot (send it any message) so it can message you back
 
-### 5. Add GitHub Secrets
+### 5. Get a free Gemini API key
 
-Go to **Settings → Secrets and variables → Actions** and add all of the following:
+1. Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+2. Sign in with Google → **Create API key**
+3. Copy the key — no credit card required
+
+### 6. Add GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add all of the following:
 
 | Secret | Description |
 |--------|-------------|
-| `ANTHROPIC_API_KEY` | From [console.anthropic.com](https://console.anthropic.com) |
+| `GEMINI_API_KEY` | From [aistudio.google.com](https://aistudio.google.com/app/apikey) — free |
 | `R2_ACCOUNT_ID` | Cloudflare dashboard → R2 |
 | `R2_ACCESS_KEY_ID` | R2 → Manage R2 API Tokens |
 | `R2_SECRET_ACCESS_KEY` | Same as above |
 | `R2_BUCKET_NAME` | Your R2 bucket name |
 | `R2_PUBLIC_URL` | Public URL of your bucket e.g. `https://pub-xxxx.r2.dev` |
 | `IG_USER_ID` | Instagram Business Account ID |
-| `IG_ACCESS_TOKEN` | Long-lived token from Meta Graph API Explorer |
+| `IG_ACCESS_TOKEN` | Long-lived token from Meta Graph API Explorer (valid 60 days) |
 | `TELEGRAM_BOT_TOKEN` | From @BotFather |
 | `TELEGRAM_CHAT_ID` | From @userinfobot |
 
-> **Note:** Your R2 bucket must have **public access enabled**. The Instagram API fetches images by URL when creating the carousel, so the uploaded files must be publicly readable.
+> **Note:** Your R2 bucket must have **public access enabled**. The Instagram API fetches images by URL when creating the carousel, so uploaded files must be publicly readable.
 
-### 6. Run locally to test
+> **Note:** The Instagram access token expires every **60 days**. Set a calendar reminder to refresh it via the Meta Graph API Explorer before it expires.
+
+### 7. Run locally to test
 
 ```bash
-export ANTHROPIC_API_KEY=your_key
+export GEMINI_API_KEY=your_key
 export TELEGRAM_BOT_TOKEN=your_token
 export TELEGRAM_CHAT_ID=your_chat_id
-# ... set all other env vars
+export R2_ACCOUNT_ID=your_id
+export R2_ACCESS_KEY_ID=your_key
+export R2_SECRET_ACCESS_KEY=your_secret
+export R2_BUCKET_NAME=your_bucket
+export R2_PUBLIC_URL=https://pub-xxxx.r2.dev
+export IG_USER_ID=your_id
+export IG_ACCESS_TOKEN=your_token
 
 SLOT=morning python main.py
 ```
+
+### 8. Do a manual GitHub Actions test
+
+1. Go to your repo → **Actions** tab
+2. Click **Daily Quote Post** → **Run workflow**
+3. Choose `morning` → click **Run workflow**
+4. Watch the logs in real time
+5. Approve on Telegram when the preview arrives
+6. Confirm the post appears on Instagram
 
 ---
 
 ## Customisation
 
-**Change the posting schedule** — edit `SCHEDULE_IST` in `main.py` and update the cron expressions in `.github/workflows/daily_quote.yml` accordingly (remember to convert IST → UTC by subtracting 5 hours 30 minutes).
+**Change the posting schedule** — edit `SCHEDULE_IST` in `main.py` and update the cron expressions in `.github/workflows/daily_quote.yml` accordingly (convert IST → UTC by subtracting 5 hours 30 minutes).
 
 **Change the approval timeout** — edit `TIMEOUT_SECONDS` at the top of `telegram_approval.py`:
 ```python
@@ -214,7 +237,7 @@ HANDLE = "@imamalinspires"
 | Layer | Tool |
 |-------|------|
 | Image generation | [Pillow](https://python-pillow.org/) |
-| AI caption writing | [Claude](https://anthropic.com) (claude-opus-4-5) |
+| AI caption writing | [Google Gemini](https://aistudio.google.com) (gemini-1.5-flash, free tier) |
 | Human approval | [Telegram Bot API](https://core.telegram.org/bots/api) |
 | Object storage | [Cloudflare R2](https://developers.cloudflare.com/r2/) |
 | Social posting | [Meta Graph API](https://developers.facebook.com/docs/instagram-api/) |
