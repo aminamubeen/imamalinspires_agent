@@ -15,7 +15,7 @@
 #  Sat–Sun    | 08:00–10:00         | 02:30 UTC     | 18:00–20:00        | 12:30 UTC
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
-#   GEMINI_API_KEY
+#   ANTHROPIC_API_KEY
 #   R2_ACCOUNT_ID
 #   R2_ACCESS_KEY_ID
 #   R2_SECRET_ACCESS_KEY
@@ -91,7 +91,7 @@ jobs:
       - name: Run quote pipeline
         env:
           SLOT:                  ${{ steps.slot.outputs.slot }}
-          GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
           R2_ACCOUNT_ID:         ${{ secrets.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID:      ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY:  ${{ secrets.R2_SECRET_ACCESS_KEY }}
