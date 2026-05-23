@@ -19,7 +19,7 @@ import time
 import requests
 
 
-GRAPH_BASE = "https://graph.facebook.com/v19.0"
+GRAPH_BASE = "https://graph.instagram.com/v21.0"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
