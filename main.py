@@ -48,7 +48,7 @@ def random_sleep_within_window(slot: str):
     day = now.weekday()
 
     window = SCHEDULE_IST[day][slot]
-    sleep_minutes = random.randint(1, 5)
+    sleep_minutes = random.randint(1, 25)
 
     print(f"  Day    : {now.strftime('%A')}")
     print(f"  Slot   : {slot}")
