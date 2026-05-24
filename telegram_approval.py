@@ -11,7 +11,9 @@ Flow:
     4. If Edit Caption → ask for new caption, then re-confirm
     5. Return { "approved": bool, "caption": str, "hashtags": str }
 
-Timeout: 15 minutes. If no response, auto-skips and notifies.
+Timeout: 30 minutes. If no response, auto-POSTS with the original Claude
+caption (even if you were mid-edit). Use the ❌ Skip button to actively
+cancel a slot.
 
 Required environment variables:
     TELEGRAM_BOT_TOKEN   - From @BotFather
@@ -24,7 +26,7 @@ import requests
 from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
-TIMEOUT_SECONDS = 15 * 60   # 15 minutes
+TIMEOUT_SECONDS = 30 * 60   # 30 minutes — on timeout, auto-post with original caption
 POLL_INTERVAL   = 3         # seconds between polling updates
 
 APPROVE_CB = "action_approve"
@@ -177,8 +179,19 @@ def request_approval(
             "caption":  final caption string,
             "hashtags": hashtags string,
         }
+
+    Behavior:
+        - ✅ Post   → approved, post with current caption
+        - ❌ Skip   → not approved, no post made
+        - ✏️ Edit   → owner types a new caption, then Confirm/Revert
+        - Timeout  → AUTO-POST with the ORIGINAL Claude caption
+                     (even if owner was mid-edit when timeout hit)
     """
     print("\nSending Telegram preview for approval...")
+
+    # Preserve the original Claude-generated caption — this is what
+    # gets used on timeout, regardless of any in-progress edits.
+    original_cap = caption
 
     # ── Send images ───────────────────────────────────────────────────────────
     preview_caption = (
@@ -194,11 +207,13 @@ def request_approval(
     # ── Send caption preview ──────────────────────────────────────────────────
     caption_preview = (
         f"*📝 Caption:*\n{caption}\n\n"
-        f"*#️⃣ Hashtags:*\n`{hashtags[:120]}...`"
+        f"*#️⃣ Hashtags:*\n`{hashtags[:120]}...`\n\n"
+        f"_No response in 30 min → auto-posts with this caption._"
     )
     ctrl_msg_id = _send_message(caption_preview, reply_markup=_main_keyboard())
 
-    print(f"  Preview sent. Waiting up to 15 minutes for approval...")
+    print(f"  Preview sent. Waiting up to 30 minutes for approval...")
+    print(f"  (No response → auto-post with original caption.)")
 
     # ── Poll for response ─────────────────────────────────────────────────────
     offset       = _latest_update_id()
@@ -281,13 +296,13 @@ def request_approval(
 
         time.sleep(POLL_INTERVAL)
 
-    # ── Timeout ───────────────────────────────────────────────────────────────
+    # ── Timeout → auto-post with ORIGINAL caption ─────────────────────────────
     _edit_message(
         ctrl_msg_id,
-        "⏰ *No response in 15 minutes — post skipped for this slot.*"
+        "⏰ *No response in 30 minutes — auto-posting with the original caption.*"
     )
-    print("  ⏰ Timeout — auto-skipped.")
-    return {"approved": False, "caption": current_cap, "hashtags": hashtags}
+    print("  ⏰ Timeout — auto-posting with original caption.")
+    return {"approved": True, "caption": original_cap, "hashtags": hashtags}
 
 
 # ── Notification helpers ──────────────────────────────────────────────────────

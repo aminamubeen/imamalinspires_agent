@@ -1,6 +1,6 @@
 # @imamalinspires — Daily Quote Automation
 
-A fully automated, human-in-the-loop pipeline that wakes up every morning and evening, picks a wisdom quote from Imam Ali (AS), renders beautifully styled images, writes a peaceful caption using Gemini AI, and asks for your approval on Telegram before posting a carousel to Instagram — all on a randomised schedule so it never looks like a bot.
+A fully automated, human-in-the-loop pipeline that wakes up every morning and evening, picks a wisdom quote from Imam Ali (AS), renders beautifully styled images, writes a peaceful caption using Claude, and asks for your approval on Telegram before posting a carousel to Instagram — all on a randomised schedule so it never looks like a bot.
 
 ---
 
@@ -13,7 +13,7 @@ GitHub Actions triggers (start of time window)
             ↓
   Pick quote → Render 4 images (Pillow)
             ↓
-  Gemini writes caption + hashtags
+  Claude writes caption + hashtags
             ↓
   Telegram sends you a preview:
   [dark image] [light image]
@@ -35,7 +35,7 @@ GitHub Actions triggers (start of time window)
 ```
 ├── main.py                        # Orchestrates the full pipeline
 ├── generate_image.py              # Pillow image renderer (dark + light themes)
-├── claude_routine.py              # Calls Gemini API for caption + hashtags
+├── claude_routine.py              # Calls Anthropic Claude API for caption + hashtags
 ├── telegram_approval.py           # Sends preview, waits for your approval
 ├── upload_to_r2.py                # Uploads all 4 images to Cloudflare R2
 ├── post_to_instagram.py           # Posts dark + light as carousel via Graph API
@@ -92,7 +92,7 @@ GitHub Actions triggers at the start of each window. `main.py` then sleeps a ran
 Before anything is uploaded or posted, you receive a Telegram preview:
 
 1. **Two images** — dark and light Instagram renders sent as a photo group
-2. **Caption + hashtags** — the Gemini-generated text
+2. **Caption + hashtags** — the Claude-generated text
 3. **Three inline buttons:**
 
 | Button | Action |
@@ -101,7 +101,7 @@ Before anything is uploaded or posted, you receive a Telegram preview:
 | ❌ Skip | Skips this slot, no post made |
 | ✏️ Edit Caption | Bot prompts you to type a new caption; shows a preview with Confirm / Revert buttons |
 
-**Timeout:** If there is no response within 15 minutes, the slot is automatically skipped and you receive a timeout notification.
+**Timeout:** If there is no response within **30 minutes**, the slot is **automatically posted with the original Claude-generated caption** and you receive a timeout notification. This applies even if you were mid-edit when the timeout hit — your in-progress edit is discarded and the original caption is used. To actively cancel a slot, tap **❌ Skip**.
 
 ---
 
@@ -152,11 +152,12 @@ Download [Lora](https://fonts.google.com/specimen/Lora) and [Poppins](https://fo
 3. Message [@userinfobot](https://t.me/userinfobot) to get your **personal chat ID**
 4. Start a conversation with your new bot (send it any message) so it can message you back
 
-### 5. Get a free Gemini API key
+### 5. Get an Anthropic API key
 
-1. Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-2. Sign in with Google → **Create API key**
-3. Copy the key — no credit card required
+1. Go to [console.anthropic.com](https://console.anthropic.com)
+2. Sign in → **Settings → API Keys → Create Key**
+3. Copy the key (you'll only see it once)
+4. Add a small amount of credit under **Settings → Billing** — the pipeline uses Claude Haiku, which is inexpensive (a few cents per month at twice-daily posting)
 
 ### 6. Add GitHub Secrets
 
@@ -164,7 +165,7 @@ Go to **Settings → Secrets and variables → Actions → New repository secret
 
 | Secret | Description |
 |--------|-------------|
-| `GEMINI_API_KEY` | From [aistudio.google.com](https://aistudio.google.com/app/apikey) — free |
+| `ANTHROPIC_API_KEY` | From [console.anthropic.com](https://console.anthropic.com) |
 | `R2_ACCOUNT_ID` | Cloudflare dashboard → R2 |
 | `R2_ACCESS_KEY_ID` | R2 → Manage R2 API Tokens |
 | `R2_SECRET_ACCESS_KEY` | Same as above |
@@ -182,7 +183,7 @@ Go to **Settings → Secrets and variables → Actions → New repository secret
 ### 7. Run locally to test
 
 ```bash
-export GEMINI_API_KEY=your_key
+export ANTHROPIC_API_KEY=your_key
 export TELEGRAM_BOT_TOKEN=your_token
 export TELEGRAM_CHAT_ID=your_chat_id
 export R2_ACCOUNT_ID=your_id
@@ -213,8 +214,9 @@ SLOT=morning python main.py
 
 **Change the approval timeout** — edit `TIMEOUT_SECONDS` at the top of `telegram_approval.py`:
 ```python
-TIMEOUT_SECONDS = 15 * 60   # change to e.g. 30 * 60 for 30 minutes
+TIMEOUT_SECONDS = 30 * 60   # change to e.g. 15 * 60 for 15 minutes
 ```
+Note: on timeout, the pipeline auto-posts with the original Claude caption rather than skipping. If you'd prefer the old "skip on timeout" behavior, change the timeout branch in `request_approval()` to return `{"approved": False, ...}`.
 
 **Switch default theme** — edit `THEME` in `generate_image.py`:
 ```python
@@ -237,7 +239,7 @@ HANDLE = "@imamalinspires"
 | Layer | Tool |
 |-------|------|
 | Image generation | [Pillow](https://python-pillow.org/) |
-| AI caption writing | [Google Gemini](https://aistudio.google.com) (gemini-1.5-flash, free tier) |
+| AI caption writing | [Anthropic Claude](https://www.anthropic.com) (claude-haiku-4-5) |
 | Human approval | [Telegram Bot API](https://core.telegram.org/bots/api) |
 | Object storage | [Cloudflare R2](https://developers.cloudflare.com/r2/) |
 | Social posting | [Meta Graph API](https://developers.facebook.com/docs/instagram-api/) |
