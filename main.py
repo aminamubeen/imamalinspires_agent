@@ -3,11 +3,12 @@ main.py
 -------
 Orchestrates the full daily quote pipeline with:
   - Random delay within a per-day, per-slot time window (IST)
+    → skipped automatically when triggered manually via workflow_dispatch
   - Telegram preview + human approval before posting
   - Claude-generated caption + hashtags
   - Pillow image rendering
   - Cloudflare R2 upload
-  - Instagram carousel post
+  - Instagram carousel post (dark first in morning, light first in evening)
 
 Triggered by GitHub Actions twice daily.
 Slot is passed via environment variable: SLOT=morning or SLOT=evening
@@ -41,14 +42,18 @@ SCHEDULE_IST = {
 
 
 def random_sleep_within_window(slot: str):
+    """
+    Sleeps a random duration so the actual post lands at a random
+    time within the window for today's slot.
+    """
     from datetime import datetime, timezone, timedelta
 
     IST = timezone(timedelta(hours=5, minutes=30))
     now = datetime.now(IST)
     day = now.weekday()
 
-    window = SCHEDULE_IST[day][slot]
-    sleep_minutes = random.randint(1, 25)
+    window        = SCHEDULE_IST[day][slot]
+    sleep_minutes = random.randint(5, 30)
 
     print(f"  Day    : {now.strftime('%A')}")
     print(f"  Slot   : {slot}")
@@ -119,10 +124,22 @@ def run():
             raise RuntimeError("Instagram images failed to upload to R2.")
 
         # ── Step 5: Post carousel to Instagram ───────────────────────────────
+        # Morning → dark first (deep slate, calm start to the day)
+        # Evening → light first (warm cream, soft end to the day)
         print("\n[5/5] Posting carousel to Instagram...")
+
+        if slot == "morning":
+            first_url  = urls["instagram_dark"]
+            second_url = urls["instagram_light"]
+            print("  Order: dark → light (morning)")
+        else:
+            first_url  = urls["instagram_light"]
+            second_url = urls["instagram_dark"]
+            print("  Order: light → dark (evening)")
+
         media_id = post_carousel(
-            instagram_dark_url  = urls["instagram_dark"],
-            instagram_light_url = urls["instagram_light"],
+            instagram_dark_url  = first_url,
+            instagram_light_url = second_url,
             caption             = final_caption,
             hashtags            = final_hashtags,
         )
